@@ -44,7 +44,7 @@ function parseIntOrNull (i) {
 
 async function setincache(id, data) {
     if (data.is404) return;
-    console.log(data);  
+    //console.log(data);  
     con.query("INSERT INTO posts (id,author,topic_id,source,isdustbinned) VALUES (?,?,?,?,?);", [parseIntOrNull(id), data.author, parseIntOrNull(data.topic_id), data.bbcodesource, data.isdustbinned])
 }
 

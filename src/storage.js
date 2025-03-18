@@ -1,8 +1,8 @@
 const fs = require("fs");
 
 async function getfromcache(id) {
-    let content = fs.readFileSync("cache/post/" + id.toString());
     try {
+        let content = fs.readFileSync("cache/post/" + id.toString());
         return JSON.parse(content);
     } catch {
         fs.unlinkSync("cache/post/" + id.toString());

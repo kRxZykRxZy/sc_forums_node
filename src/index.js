@@ -57,12 +57,10 @@ async function getpostcaching(id) {
     }
 }
 async function cacheforever(state) {
-    while (true) {
         state.cached++;
-        if (!isincache(state.cached)) {
             await getpostcaching(state.cached)
-        }
-    }
+        
+        setTimeout(cacheforever, 100, state);
 }
 function cache(state) {
     for (let i = 0; i < 50; i++) {

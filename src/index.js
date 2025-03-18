@@ -105,6 +105,15 @@ async function serve(state) {
                     ws.send(state.cached.toString());
                 }
             }, 100);
+        } else if (req.url == "/leaderboard/ws") {
+            let old = state.cached;
+            setInterval(async () => {
+                let lb=await leaderboard();
+                if (old != lb) {
+                    old = lb;
+                    ws.send(JSON.stringify(lb,null,2));
+                }
+            }, 1000);
         }
     });
     console.log("Starting to listen...");

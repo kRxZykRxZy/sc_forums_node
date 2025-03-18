@@ -13,3 +13,16 @@ Latest post retrieved: <span id=out></span><br>
         window.last=window.now;
     }, 10000);
 </script>
+
+<br>
+<textarea id="leaderboard"></textarea><script>
+    window.textarea=document.getElementById("leaderboard");
+    ws3 = new WebSocket(`ws://${location.host}/leaderboard/ws`);
+    ws3.onmessage = (e) => {
+        let p=JSON.parse(e.data);
+        window.textarea.value="";
+        p.forEach((i)=>{
+            window.textarea.value+=i[0]+": "+i[1].toString()+"\n";
+        })
+    }
+</script>

@@ -32,7 +32,8 @@ async function getfromcache(id) {
             if (result.length == 0) {
                 resolve(false);
             } else {
-                resolve(result[0]);
+                let i=result[0];
+                resolve( { "topic_id": i.topic_id, "author": i.author, "bbcodesource": i.source, "is404": false, "isdustbinned": i.isdustbinned });
             }
         });
     });
@@ -52,11 +53,16 @@ async function isincache(id) {
     return Boolean(await getfromcache(id));
 }
 
-async function leaderboard() {
-    con.query("SELECT author, COUNT(author) AS post_count FROM posts GROUP BY author HAVING COUNT(author) > 100 ORDER BY post_count DESC;",function (err, result) {
+function leaderboard() {
+    return new Promise((resolve,_reject)=>{ con.query("SELECT author, COUNT(author) AS post_count FROM posts GROUP BY author ORDER BY post_count DESC;",function (err, result) {
         if (err) throw err;
-        resolve(result);
+        let new_arr=[];
+        result.forEach((i)=>{
+            new_arr.push([i.author,i.count_posts])
+        })
+        resolve(new_arr);
     });
+});
 }
 
 module.exports={ isincache, getfromcache, setincache, leaderboard };

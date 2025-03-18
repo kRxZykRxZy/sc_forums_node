@@ -52,4 +52,11 @@ async function isincache(id) {
     return Boolean(await getfromcache(id));
 }
 
-module.exports={ isincache, getfromcache, setincache };
+async function leaderboard() {
+    con.query("SELECT author, COUNT(author) AS post_count FROM posts GROUP BY author HAVING COUNT(author) > 100 ORDER BY post_count DESC;",function (err, result) {
+        if (err) throw err;
+        resolve(result);
+    });
+}
+
+module.exports={ isincache, getfromcache, setincache, leaderboard };

@@ -2,7 +2,7 @@ const jsdom = require("jsdom");
 const fs = require("fs");
 const http = require("http");
 const ws = require("ws");
-const { getfromcache, setincache, isincache } = require("./storage.js");
+const { getfromcache, setincache, leaderboard } = require("./storage.js");
 
 async function getsource(id) {
     let theid = id;
@@ -85,6 +85,11 @@ async function serve(state) {
         } else if (/\/status\/?/.test(req.url)) {
             res.setHeader("content-type", "text/html");
             res.end(fs.readFileSync("static/status.html"));
+        } else if (/\/leaderboard\/?/.test(req.url)) {
+            res.setHeader("content-type", "text/json");
+            res.end(JSON.strinfigy(leaderboard()));
+        } else {
+            res.end("404 Not Found")
         }
     });
     const wss = new ws.WebSocketServer({ server });

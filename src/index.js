@@ -64,7 +64,7 @@ async function cacheforever(state) {
         state.cached++;
             await getpostcaching(state.cached)
         
-        setTimeout(cacheforever, 100, state);
+        setTimeout(cacheforever, 200, state);
 }
 function cache(state) {
     for (let i = 0; i < 50; i++) {

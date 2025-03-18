@@ -1,6 +1,6 @@
 const fs = require("fs");
 
-async function getfromcache(postid) {
+async function getfromcache(id) {
     let content = fs.readFileSync("cache/post/" + id.toString());
     try {
         return JSON.parse(content);
@@ -10,7 +10,7 @@ async function getfromcache(postid) {
     return false;
 }
 
-async function writetocache(postid, content) {
+async function writetocache(id, content) {
     if (!fs.existsSync("cache/")) {
         fs.mkdirSync("cache/");
     }
@@ -19,3 +19,5 @@ async function writetocache(postid, content) {
     }
     fs.writeFile("cache/post/" + id.toString(), JSON.stringify(content), () => { });
 }
+
+module.exports = { getfromcache, writetocache };

@@ -88,7 +88,7 @@ async function serve(state) {
         } else if (/\/leaderboard\/?/.test(req.url)) {
             res.setHeader("content-type", "text/json");
             res.setHeader("refresh","1");
-            res.end(JSON.stringify(await leaderboard()));
+            res.end(JSON.stringify(await leaderboard(),null,2));
         } else {
             res.end("404 Not Found")
         }

@@ -46,7 +46,6 @@ async function getpost(id) {
     source = await sourcerequest;
     return { "topic_id": topicid, "author": author, "bbcodesource": source, "is404": false, "isdustbinned": false }
 }
-exports.getpost = getpost;
 
 async function getpostcaching(id) {
     cacheresult = await getfromcache(id);

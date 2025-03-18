@@ -75,6 +75,7 @@ async function main() {
 }
 async function serve(state) {
     const server = http.createServer({}, async (req, res) => {
+        console.log(req.url);
         if (/\/post\/(\d*)/.test(req.url)) {
             res.end(JSON.stringify(await getpostcaching(req.url.match(/\/post\/(\d*)/)[1])));
         } else if (/\/status\/?/.test(req.url)) {
@@ -96,6 +97,7 @@ async function serve(state) {
             }, 100);
         }
     });
+    console.log("Starting to listen...");
     server.listen(3000, "");
 }
 main();

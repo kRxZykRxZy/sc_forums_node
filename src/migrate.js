@@ -3,7 +3,13 @@ const fs = require("fs");
 
 (async()=>{
 fs.readdirSync('cache/post').forEach(async (i)=>{
-    if (i%100==0)console.log(i);
-    await setincache(i,JSON.parse(fs.readFileSync("cache/post/"+i)));
-    //fs.unlinkSync("cache/post/"+i);
+    let data;
+    try {
+        data=JSON.parse(fs.readFileSync("cache/post/"+i));
+    } catch {
+        return;
+    }
+    if (!(data==null || data.author==null)) {
+        await setincache(i,data);
+    }
 })})();

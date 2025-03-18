@@ -16,7 +16,7 @@ async function getsource(id) {
     })).text()
 }
 
-async function getpost(id,page=null) {
+async function getpost(id, page = null) {
     id = id.toString();
     console.log("Getting post " + id);
     let sourcerequest = getsource(id);
@@ -34,9 +34,9 @@ async function getpost(id,page=null) {
         return { "topic_id": null, "author": null, "bbcodesource": null, "is404": true, "isdustbinned": false };
     }
     let topicid = parseInt(response.url.match(/https:\/\/scratch\.mit\.edu\/discuss\/topic\/(\d*)\/(\?page=\d*)?(\#post-\d*)?\/?/)[1]);
-    let pagen=parseInt(response.url.match(/https:\/\/scratch\.mit\.edu\/discuss\/topic\/\d*\/(\?page=(\d*))?(\#post-\d*)?\/?/)[2]);
+    let pagen = parseInt(response.url.match(/https:\/\/scratch\.mit\.edu\/discuss\/topic\/\d*\/(\?page=(\d*))?(\#post-\d*)?\/?/)[2]);
     if (page) {
-        response=await fetch("https://scratch.mit.edu/discuss/topic/"+topicid.toString()+"?page="+(pagen+page).toString())
+        response = await fetch("https://scratch.mit.edu/discuss/topic/" + topicid.toString() + "?page=" + (pagen + page).toString())
     }
     if (response.status == 403) {
         return { "topic_id": topicid, "author": null, "bbcodesource": null, "is404": false, "isdustbinned": true };
@@ -46,7 +46,7 @@ async function getpost(id,page=null) {
     let author;
     try {
         author = parsed.window.document.getElementById("p" + id.toString()).querySelector("div .box-content .postleft dl dt a").textContent;
-    } catch { return await getpost(id,1); }
+    } catch { return await getpost(id, 1); }
     let source;
     source = await sourcerequest;
     return { "topic_id": topicid, "author": author, "bbcodesource": source, "is404": false, "isdustbinned": false }
@@ -61,10 +61,9 @@ async function getpostcaching(id) {
     }
 }
 async function cacheforever(state) {
-        state.cached++;
-            await getpostcaching(state.cached)
-        
-        setTimeout(cacheforever, 200, state);
+    state.cached++;
+    await getpostcaching(state.cached);
+    setTimeout(cacheforever, 100, state);
 }
 function cache(state) {
     for (let i = 0; i < 100; i++) {

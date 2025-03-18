@@ -1,0 +1,15 @@
+<meta name=viewport content=width=device-width,initial-scale=1 />
+Latest post retrieved: <span id=out></span><br>
+<span id=rate></span> posts per second.
+<script>
+    ws2 = new WebSocket(`ws://${location.host}/status/ws`);
+    ws2.onmessage = (e) => {
+        window.now=parseInt(e.data);
+        document.getElementById('out').innerText = (e.data);
+    }
+    window.last=0;
+    setInterval(() => {
+        document.getElementById('rate').innerText = ((window.now-window.last)/10).toString();
+        window.last=window.now;
+    }, 10000);
+</script>

@@ -58,8 +58,8 @@ function leaderboard() {
         if (err) throw err;
         let new_arr=[];
         result.forEach((i)=>{
-            new_arr.push([i.author,i.count_posts])
-        })
+            new_arr.push([i.author,i.post_count])
+        });
         resolve(new_arr);
     });
 });

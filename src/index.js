@@ -87,7 +87,7 @@ async function serve(state) {
             res.end(fs.readFileSync("static/status.html"));
         } else if (/\/leaderboard\/?/.test(req.url)) {
             res.setHeader("content-type", "text/json");
-            res.end(JSON.stringify(leaderboard()));
+            res.end(JSON.stringify(await leaderboard()));
         } else {
             res.end("404 Not Found")
         }

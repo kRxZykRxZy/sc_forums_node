@@ -19,7 +19,7 @@ var con = mysql.createConnection({
 
 
 async function setup() {
-    con.query("CREATE TABLE IF NOT EXISTS `posts` (`id` INT NOT NULL,`author` TEXT, `topic_id` INT NOT NULL, `source` TEXT, `isdustbinned` BOOLEAN NOT NULL, PRIMARY KEY (`id`))", function (err, _result) {
+    con.query("CREATE TABLE IF NOT EXISTS `posts` (`id` INT NOT NULL,`author` TINYTEXT, `topic_id` INT NOT NULL, `source` MEDIUMTEXT, `isdustbinned` BOOLEAN NOT NULL, PRIMARY KEY (`id`))", function (err, _result) {
         if (err) throw err;
     });
 }

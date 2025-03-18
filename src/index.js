@@ -67,7 +67,7 @@ async function cacheforever(state) {
         setTimeout(cacheforever, 200, state);
 }
 function cache(state) {
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < 100; i++) {
         cacheforever(state);
     }
 }

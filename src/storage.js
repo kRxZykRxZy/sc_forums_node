@@ -1,30 +1,55 @@
-const fs = require("fs");
+var mysql = require('mysql');
+var dbconfig = require('../dbconfig.json');
+
+var con = mysql.createConnection({
+    host: dbconfig.host,
+    port: dbconfig.port,
+    user: dbconfig.user,
+    password: dbconfig.password,
+    database: dbconfig.database
+});
+(async () => {
+    await new Promise((resolve, _reject) => {
+        con.connect(function (err) {
+            if (err) throw err;
+            resolve()
+        });
+    });
+})()
+
+
+async function setup() {
+    con.query("CREATE TABLE IF NOT EXISTS `posts` (`id` INT NOT NULL,`author` TEXT, `topic_id` INT NOT NULL, `source` TEXT, `isdustbinned` BOOLEAN NOT NULL, PRIMARY KEY (`id`))", function (err, _result) {
+        if (err) throw err;
+    });
+}
+setup();
 
 async function getfromcache(id) {
-    if (!fs.existsSync("cache/post/" + id.toString())) {
-        return false;
-    }
-    let content = fs.readFileSync("cache/post/" + id.toString());
-    try {
-        return JSON.parse(content);
-    } catch {
-        fs.unlinkSync("cache/post/" + id.toString());
-    }
-    return false;
+    return new Promise((resolve, _reject) => {
+        con.query("SELECT * FROM posts WHERE id = ?", [id], function (err, result) {
+            if (err) throw err;
+            if (result.length == 0) {
+                resolve(false);
+            } else {
+                resolve(result[0]);
+            }
+        });
+    });
+}
+
+function parseIntOrNull (i) {
+    return null ? i == null : parseInt(i);
+}
+
+async function setincache(id, data) {
+    if (data.is404) return;
+    console.log(data);  
+    con.query("INSERT INTO posts (id,author,topic_id,source,isdustbinned) VALUES (?,?,?,?,?);", [parseIntOrNull(id), data.author, parseIntOrNull(data.topic_id), data.bbcodesource, data.isdustbinned])
 }
 
 async function isincache(id) {
-    return fs.existsSync("cache/post/" + id.toString())
+    return Boolean(await getfromcache(id));
 }
 
-async function setincache(id, content) {
-    if (!fs.existsSync("cache/")) {
-        fs.mkdirSync("cache/");
-    }
-    if (!fs.existsSync("cache/post")) {
-        fs.mkdirSync("cache/post");
-    }
-    fs.writeFile("cache/post/" + id.toString(), JSON.stringify(content), () => { });
-}
-
-module.exports = { getfromcache, setincache, isincache };
+module.exports={ isincache, getfromcache, setincache };

@@ -54,7 +54,7 @@ async function isincache(id) {
 }
 
 function leaderboard() {
-    return new Promise((resolve,_reject)=>{ con.query("SELECT author, COUNT(author) AS post_count FROM posts GROUP BY author ORDER BY post_count DESC;",function (err, result) {
+    return new Promise((resolve,_reject)=>{ con.query("SELECT author, COUNT(author) AS post_count FROM posts GROUP BY author ORDER BY post_count DESC LIMIT 50;",function (err, result) {
         if (err) throw err;
         let new_arr=[];
         result.forEach((i)=>{

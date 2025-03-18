@@ -67,8 +67,10 @@ function cache(state) {
     }
 }
 async function main() {
-    let state = { cached: 0 }
+    let state = { cached: 0 };
+    console.log("Starting server");
     serve(state);
+    console.log("Starting caching all posts");
     cache(state);
 }
 async function serve(state) {

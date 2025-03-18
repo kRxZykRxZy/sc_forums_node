@@ -2,7 +2,7 @@ const jsdom = require("jsdom");
 const fs = require("fs");
 const http = require("http");
 const ws = require("ws");
-const { getfromcache, setincache } = require("./storage.js");
+const { getfromcache, setincache, isincache } = require("./storage.js");
 
 async function getsource(id) {
     let theid = id;
@@ -18,6 +18,7 @@ async function getsource(id) {
 
 async function getpost(id) {
     id = id.toString();
+    console.log("Getting post " + id);
     let sourcerequest = getsource(id);
     let response;
     try {
@@ -58,7 +59,9 @@ async function getpostcaching(id) {
 async function cacheforever(state) {
     while (true) {
         state.cached++;
-        await getpostcaching(state.cached);
+        if (!isincache(state.cached)) {
+            await getpostcaching(state.cached)
+        }
     }
 }
 function cache(state) {

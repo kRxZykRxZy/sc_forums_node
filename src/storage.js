@@ -13,7 +13,11 @@ async function getfromcache(id) {
     return false;
 }
 
-async function writetocache(id, content) {
+async function isincache(id) {
+    return fs.existsSync("cache/post/" + id.toString())
+}
+
+async function setincache(id, content) {
     if (!fs.existsSync("cache/")) {
         fs.mkdirSync("cache/");
     }
@@ -23,4 +27,4 @@ async function writetocache(id, content) {
     fs.writeFile("cache/post/" + id.toString(), JSON.stringify(content), () => { });
 }
 
-module.exports = { getfromcache, writetocache };
+module.exports = { getfromcache, setincache, isincache };

@@ -60,10 +60,21 @@ async function getpostcaching(id) {
         return result;
     }
 }
+function sleeppromise(ms) {
+    return new Promise((resolve, _reject) => {
+        setTimeout(resolve, ms);
+    })
+}
 async function cacheforever(state) {
-    state.cached++;
-    await getpostcaching(state.cached);
-    setTimeout(cacheforever, 100, state);
+    while (true) {
+        state.cached++;
+        try {
+            await getpostcaching(state.cached);
+        } catch (e) {
+            console.error(e);
+        }
+        await sleeppromise(500);
+    }
 }
 function cache(state) {
     for (let i = 0; i < 100; i++) {
@@ -87,8 +98,8 @@ async function serve(state) {
             res.end(fs.readFileSync("static/status.html"));
         } else if (/\/leaderboard\/?/.test(req.url)) {
             res.setHeader("content-type", "text/json");
-            res.setHeader("refresh","1");
-            res.end(JSON.stringify(await leaderboard(),null,2));
+            res.setHeader("refresh", "1");
+            res.end(JSON.stringify(await leaderboard(), null, 2));
         } else {
             res.end("404 Not Found")
         }
@@ -108,10 +119,10 @@ async function serve(state) {
         } else if (req.url == "/leaderboard/ws") {
             let old = state.cached;
             setInterval(async () => {
-                let lb=await leaderboard();
+                let lb = await leaderboard();
                 if (old != lb) {
                     old = lb;
-                    ws.send(JSON.stringify(lb,null,2));
+                    ws.send(JSON.stringify(lb, null, 2));
                 }
             }, 1000);
         }

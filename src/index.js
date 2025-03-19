@@ -73,7 +73,7 @@ async function cacheforever(state) {
         } catch (e) {
             console.error(e);
         }
-        await sleeppromise(500);
+        await sleeppromise(50);
     }
 }
 function cache(state) {

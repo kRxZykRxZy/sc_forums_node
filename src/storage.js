@@ -25,43 +25,58 @@ async function setup() {
 }
 setup();
 
-async function getfromcache(id) {
+function getfromcache(id) {
     return new Promise((resolve, _reject) => {
         con.query("SELECT * FROM posts WHERE id = ?", [id], function (err, result) {
             if (err) throw err;
             if (result.length == 0) {
                 resolve(false);
             } else {
-                let i=result[0];
-                resolve( { "topic_id": i.topic_id, "author": i.author, "bbcodesource": i.source, "is404": i.is404, "isdustbinned": i.isdustbinned });
+                let i = result[0];
+                resolve({ "topic_id": i.topic_id, "author": i.author, "bbcodesource": i.source, "is404": i.is404, "isdustbinned": i.isdustbinned });
             }
         });
     });
 }
 
-function parseIntOrNull (i) {
-    return null ? i == null : parseInt(i);
+function parseIntOrNull(i) {
+    return i == null ? null : parseInt(i);
 }
 
 async function setincache(id, data) {
-    //console.log(data);  
-    con.query("INSERT INTO posts (id,author,topic_id,source,isdustbinned,is404) VALUES (?,?,?,?,?,?);", [parseIntOrNull(id), data.author, parseIntOrNull(data.topic_id), data.bbcodesource, data.isdustbinned, data.is404])
+    con.query("INSERT INTO posts (id,author,topic_id,source,isdustbinned,is404) VALUES (?,?,?,?,?,?);", [parseInt(id), data.author, parseIntOrNull(data.topic_id), data.bbcodesource, data.isdustbinned, data.is404])
 }
 
 async function isincache(id) {
     return Boolean(await getfromcache(id));
 }
 
-function leaderboard() {
-    return new Promise((resolve,_reject)=>{ con.query("SELECT author, COUNT(author) AS post_count FROM posts GROUP BY author ORDER BY post_count DESC LIMIT 50;",function (err, result) {
-        if (err) throw err;
-        let new_arr=[];
-        result.forEach((i)=>{
-            new_arr.push([i.author,i.post_count])
+function getnext() {
+    return new Promise((resolve, _reject) => {
+        con.query("SELECT MIN(a.id) + 1 AS firstfree FROM (SELECT id FROM posts UNION SELECT 0) a LEFT JOIN posts b ON b.id = a.id + 1 WHERE b.id IS NULL;", function (err, result) {
+            if (err) throw err;
+            if (result.length == 0) {
+                resolve(false);
+            } else {
+                let i = result[0];
+                resolve(i.firstfree);
+            }
         });
-        resolve(new_arr);
-    });
-});
+    })
+
 }
 
-module.exports={ isincache, getfromcache, setincache, leaderboard };
+function leaderboard() {
+    return new Promise((resolve, _reject) => {
+        con.query("SELECT author, COUNT(author) AS post_count FROM posts GROUP BY author ORDER BY post_count DESC LIMIT 50;", function (err, result) {
+            if (err) throw err;
+            let new_arr = [];
+            result.forEach((i) => {
+                new_arr.push([i.author, i.post_count])
+            });
+            resolve(new_arr);
+        });
+    });
+}
+
+module.exports = { isincache, getfromcache, setincache, leaderboard, getnext };

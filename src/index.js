@@ -2,7 +2,7 @@ const jsdom = require("jsdom");
 const fs = require("fs");
 const http = require("http");
 const ws = require("ws");
-const { getfromcache, setincache, leaderboard } = require("./storage.js");
+const { getfromcache, setincache, leaderboard, getnext } = require("./storage.js");
 
 async function getsource(id) {
     let theid = id;
@@ -77,12 +77,12 @@ async function cacheforever(state) {
     }
 }
 function cache(state) {
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 1; i++) {
         cacheforever(state);
     }
 }
 async function main() {
-    let state = { cached: 0 };
+    let state = { cached: (await getnext())-1 };
     console.log("Starting server");
     serve(state);
     console.log("Starting caching all posts");
@@ -106,14 +106,16 @@ async function serve(state) {
     });
     const wss = new ws.WebSocketServer({ server });
 
-    wss.on('connection', function (ws, req) {
+    wss.on('connection', async function (ws, req) {
         console.log(req.url);
         if (req.url == "/status/ws") {
-            let old = state.cached;
-            setInterval(() => {
-                if (old != state.cached) {
-                    old = state.cached;
-                    ws.send(state.cached.toString());
+            let old = await getnext();
+            ws.send(old);
+            setInterval(async function () {
+                let content = await getnext();
+                if (content!=old) {
+                    ws.send(content);
+                    old=content;
                 }
             }, 100);
         } else if (req.url == "/leaderboard/ws") {

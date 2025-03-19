@@ -19,7 +19,7 @@ var con = mysql.createConnection({
 
 
 async function setup() {
-    con.query("CREATE TABLE IF NOT EXISTS `posts` (`id` INT NOT NULL,`author` TINYTEXT, `topic_id` INT NOT NULL, `source` MEDIUMTEXT, `isdustbinned` BOOLEAN NOT NULL, PRIMARY KEY (`id`))", function (err, _result) {
+    con.query("CREATE TABLE IF NOT EXISTS `posts` (`id` INT NOT NULL,`author` TINYTEXT, `topic_id` INT NOT NULL, `source` MEDIUMTEXT, `isdustbinned` BOOLEAN NOT NULL, `is404` BOOLEAN NOT NULL, PRIMARY KEY (`id`))", function (err, _result) {
         if (err) throw err;
     });
 }
@@ -33,7 +33,7 @@ async function getfromcache(id) {
                 resolve(false);
             } else {
                 let i=result[0];
-                resolve( { "topic_id": i.topic_id, "author": i.author, "bbcodesource": i.source, "is404": false, "isdustbinned": i.isdustbinned });
+                resolve( { "topic_id": i.topic_id, "author": i.author, "bbcodesource": i.source, "is404": i.is404, "isdustbinned": i.isdustbinned });
             }
         });
     });
@@ -44,9 +44,8 @@ function parseIntOrNull (i) {
 }
 
 async function setincache(id, data) {
-    if (data.is404) return;
     //console.log(data);  
-    con.query("INSERT INTO posts (id,author,topic_id,source,isdustbinned) VALUES (?,?,?,?,?);", [parseIntOrNull(id), data.author, parseIntOrNull(data.topic_id), data.bbcodesource, data.isdustbinned])
+    con.query("INSERT INTO posts (id,author,topic_id,source,isdustbinned,is404) VALUES (?,?,?,?,?,?);", [parseIntOrNull(id), data.author, parseIntOrNull(data.topic_id), data.bbcodesource, data.isdustbinned, data.is404])
 }
 
 async function isincache(id) {

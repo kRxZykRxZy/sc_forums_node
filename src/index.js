@@ -8,10 +8,12 @@ async function getsource(id) {
     let theid = id;
     let sourcerequest = fetch("https://scratch.mit.edu/discuss/post/" + id + "/source", {
         headers: {
-            'Accept-Encoding': 'utf-8'
+            'Accept-Encoding': 'utf-8',
+            "signal":AbortSignal.timeout(5000)
         }
     });
     return await (await sourcerequest.catch((_) => {
+        console.log("Retrying fetching source");
         return getsource(theid)
     })).text()
 }
@@ -25,9 +27,11 @@ async function getpost(id, page = null) {
         response = await fetch("https://scratch.mit.edu/discuss/post/" + id, {
             headers: {
                 'Accept-Encoding': 'utf-8'
-            }
+            },
+            signal: AbortSignal.timeout(5000)
         });
-    } catch {
+    } catch (e) {
+        throw (e);
         return await getpost(id);
     }
     if (response.status == 404) {
@@ -36,7 +40,7 @@ async function getpost(id, page = null) {
     let topicid = parseInt(response.url.match(/https:\/\/scratch\.mit\.edu\/discuss\/topic\/(\d*)\/(\?page=\d*)?(\#post-\d*)?\/?/)[1]);
     let pagen = parseInt(response.url.match(/https:\/\/scratch\.mit\.edu\/discuss\/topic\/\d*\/(\?page=(\d*))?(\#post-\d*)?\/?/)[2]);
     if (page) {
-        response = await fetch("https://scratch.mit.edu/discuss/topic/" + topicid.toString() + "?page=" + (pagen + page).toString())
+        response = await fetch("https://scratch.mit.edu/discuss/topic/" + topicid.toString() + "?page=" + (pagen + page).toString(),{ signal: AbortSignal.timeout(5000) });
     }
     if (response.status == 403) {
         return { "topic_id": topicid, "author": null, "bbcodesource": null, "is404": false, "isdustbinned": true };
@@ -46,7 +50,9 @@ async function getpost(id, page = null) {
     let author;
     try {
         author = parsed.window.document.getElementById("p" + id.toString()).querySelector("div .box-content .postleft dl dt a").textContent;
-    } catch { return await getpost(id, 1); }
+    } catch { 
+        console.log("New page");
+        return await getpost(id, 1); }
     let source;
     source = await sourcerequest;
     return { "topic_id": topicid, "author": author, "bbcodesource": source, "is404": false, "isdustbinned": false }
@@ -67,7 +73,7 @@ function sleeppromise(ms) {
 }
 async function cacheforever(state) {
     while (true) {
-        state.cached++;
+        state.cached=await getnext();
         try {
             await getpostcaching(state.cached);
         } catch (e) {

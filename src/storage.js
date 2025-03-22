@@ -51,7 +51,7 @@ async function isincache(id) {
     return Boolean(await getfromcache(id));
 }
 
-function getnext() {
+function getnext(claim=false) {
     return new Promise((resolve, _reject) => {
         con.query("SELECT MIN(a.id) + 1 AS firstfree FROM (SELECT id FROM posts UNION SELECT 0) a LEFT JOIN posts b ON b.id = a.id + 1 WHERE b.id IS NULL;", function (err, result) {
             if (err) throw err;

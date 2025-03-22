@@ -73,7 +73,7 @@ function sleeppromise(ms) {
 }
 async function cacheforever(state) {
     while (true) {
-        state.cached=await getnext();
+        state.cached=await getnext(claim=true);
         try {
             await getpostcaching(state.cached);
         } catch (e) {
@@ -83,7 +83,7 @@ async function cacheforever(state) {
     }
 }
 function cache(state) {
-    for (let i = 0; i < 1; i++) {
+    for (let i = 0; i < 100; i++) {
         cacheforever(state);
     }
 }

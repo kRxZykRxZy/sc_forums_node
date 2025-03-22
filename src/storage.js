@@ -19,7 +19,7 @@ var con = mysql.createConnection({
 
 
 async function setup() {
-    con.query("CREATE TABLE IF NOT EXISTS `posts` (`id` INT NOT NULL,`author` TINYTEXT, `topic_id` INT, `source` MEDIUMTEXT, `isdustbinned` BOOLEAN NOT NULL, `is404` BOOLEAN NOT NULL, PRIMARY KEY (`id`))", function (err, _result) {
+    con.query("CREATE TABLE IF NOT EXISTS `posts` (`id` INT NOT NULL,`author` TINYTEXT, `topic_id` INT, `source` MEDIUMTEXT, `isdustbinned` BOOLEAN NOT NULL, `is404` BOOLEAN NOT NULL, PRIMARY KEY (`id`));CREATE TEMPORARY TABLE `claimed`(n INT NOT NULL);", function (err, _result) {
         if (err) throw err;
     });
 }
@@ -53,7 +53,8 @@ async function isincache(id) {
 
 function getnext(claim=false) {
     return new Promise((resolve, _reject) => {
-        con.query("SELECT MIN(a.id) + 1 AS firstfree FROM (SELECT id FROM posts UNION SELECT 0) a LEFT JOIN posts b ON b.id = a.id + 1 WHERE b.id IS NULL;", function (err, result) {
+        let query = claim ? "CREATE TEMPORARY TABLE `claimed2` SELECT * FROM claimed;SELECT @a := MIN(a.id) + 1 as ff FROM (SELECT id FROM posts UNION SELECT n FROM claimed UNION SELECT 0) a LEFT JOIN (SELECT id FROM posts UNION SELECT n FROM claimed2 UNION SELECT 0) b ON b.id = a.id + 1 WHERE b.id IS NULL; INSERT into claimed (n) values (@a); SELECT @a;DROP TABLE claimed2;" : "SELECT MIN(a.id) + 1 AS firstfree FROM (SELECT id FROM posts UNION SELECT n FROM claimed UNION SELECT 0) a LEFT JOIN posts b ON b.id = a.id + 1 WHERE b.id IS NULL;";
+        con.query(query, function (err, result) {
             if (err) throw err;
             if (result.length == 0) {
                 resolve(false);

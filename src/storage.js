@@ -50,7 +50,7 @@ async function isincache(id) {
 function getnext(claim=false) {
     console.log("Getting next");
     return new Promise((resolve, _reject) => {
-        let query = claim ? "SELECT @a := MIN(a.id) + 1 as ff FROM (SELECT id FROM posts UNION SELECT n FROM claimed UNION SELECT 0) a LEFT JOIN posts b ON b.id = a.id + 1 WHERE b.id IS NULL; INSERT into claimed (n) values (@a); SELECT @a as firstfree;" : "SELECT MIN(a.id) + 1 AS firstfree FROM (SELECT id FROM posts UNION SELECT n FROM claimed UNION SELECT 0) a LEFT JOIN posts b ON b.id = a.id + 1 WHERE b.id IS NULL;";
+        let query = claim ? "SELECT @a := id FROM (SELECT id FROM posts UNION SELECT n as id FROM claimed) p1 WHERE (SELECT count(id) FROM (SELECT id FROM posts UNION SELECT n as id FROM claimed) p2 WHERE p2.id=p1.id+1)=0; INSERT into claimed (n) values (@a); SELECT @a as firstfree;" : "SELECT id as firstfree FROM (SELECT id FROM posts UNION SELECT n as id FROM claimed) p1 WHERE (SELECT count(id) FROM (SELECT id FROM posts UNION SELECT n as id FROM claimed) p2 WHERE p2.id=p1.id+1)=0;";
         con.query(query, function (err, result) {
             if (err) throw err;
             if (result.length == 0) {

@@ -1,3 +1,13 @@
+const express = require("express");
+const path = require("path");
+
+const app = express();
+const port = 3000;
+
+// Serve ../static at root
+const staticPath = path.join(__dirname, "../static");
+app.use(express.static(staticPath));
+
 const jsdom = require("jsdom");
 const worker = require('worker_threads');
 const { getfromcache, setincache, leaderboard, getnext } = require("./storage.js");
@@ -99,6 +109,10 @@ async function cache() {
 async function main() {
     console.log("Starting caching all posts");
     await cache();
+    app.listen(port, () => {
+      console.log(`✅ Server running at http://localhost:${port}`);
+      console.log(`📁 Serving static files from: ${staticPath}`);
+    });
 }
 (async () => {
     if (worker.isMainThread) {

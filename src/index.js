@@ -1,123 +1,154 @@
 const express = require("express");
 const path = require("path");
+const jsdom = require("jsdom");
+const worker = require("worker_threads");
+const fetch = require("node-fetch");
+const { getfromcache, setincache, leaderboard, getnext } = require("./storage.js");
 
 const app = express();
 const port = 3000;
 
 // Serve ../static at root
 const staticPath = path.join(__dirname, "../static");
-app.use(express.static(staticPath));
+app.use("/", express.static(staticPath));
 
-const jsdom = require("jsdom");
-const worker = require('worker_threads');
-const { getfromcache, setincache, leaderboard, getnext } = require("./storage.js");
+// --- SQLITE_BUSY retry helper ---
+async function retryOnBusy(fn, retries = 5, delay = 100) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (err.code === "SQLITE_BUSY") {
+        console.warn(`⚠️ SQLITE_BUSY — retrying (${i + 1}/${retries})...`);
+        await new Promise(r => setTimeout(r, delay));
+      } else {
+        throw err;
+      }
+    }
+  }
+  throw new Error("SQLITE_BUSY: exceeded retry attempts");
+}
 
+// --- Scratch post fetching ---
 async function getsource(id) {
-    let theid = id;
-    console.log(theid);
-    let sourcerequest = fetch("https://scratch.mit.edu/discuss/post/" + id + "/source", {
-        headers: {
-            'Accept-Encoding': 'utf-8',
-            "signal": AbortSignal.timeout(5000)
-        }
-    });
-    let x = await (await sourcerequest).text();
-    return x;
+  console.log(id);
+  const sourcerequest = fetch(`https://scratch.mit.edu/discuss/post/${id}/source`, {
+    headers: { "Accept-Encoding": "utf-8" },
+    signal: AbortSignal.timeout(5000),
+  });
+  return await (await sourcerequest).text();
 }
 
 async function getpost(id, page = null) {
-    id = id.toString();
-    console.log("Getting post " + id);
-    let sourcerequest = getsource(id);
-    let response;
-    try {
-        response = await fetch("https://scratch.mit.edu/discuss/post/" + id, {
-            headers: {
-                'Accept-Encoding': 'utf-8'
-            },
-            signal: AbortSignal.timeout(5000)
-        });
-    } catch (e) {
-        throw (e);
-        return await getpost(id);
-    }
-    if (response.status == 404) {
-        return { "topic_id": null, "author": null, "bbcodesource": null, "is404": true, "isdustbinned": false };
-    }
-    let topicid = parseInt(response.url.match(/https:\/\/scratch\.mit\.edu\/discuss\/topic\/(\d*)\/(\?page=\d*)?(\#post-\d*)?\/?/)[1]);
-    let pagen = parseInt(response.url.match(/https:\/\/scratch\.mit\.edu\/discuss\/topic\/\d*\/(\?page=(\d*))?(\#post-\d*)?\/?/)[2]);
-    if (page) {
-        response = await fetch("https://scratch.mit.edu/discuss/topic/" + topicid.toString() + "?page=" + (pagen + page).toString(), { signal: AbortSignal.timeout(5000) });
-    }
-    if (response.status == 403) {
-        return { "topic_id": topicid, "author": null, "bbcodesource": null, "is404": false, "isdustbinned": true };
-    }
-    let resptext = await response.text();
-    let parsed = new jsdom.JSDOM(resptext);
-    let author;
-    try {
-        author = parsed.window.document.getElementById("p" + id.toString()).querySelector("div .box-content .postleft dl dt a").textContent;
-    } catch {
-        console.log("New page");
-        return await getpost(id, 1);
-    }
-    let source;
-    source = await sourcerequest;
-    return { "topic_id": topicid, "author": author, "bbcodesource": source, "is404": false, "isdustbinned": false }
+  id = id.toString();
+  console.log("Getting post " + id);
+
+  const sourcerequest = getsource(id);
+  let response;
+
+  try {
+    response = await fetch(`https://scratch.mit.edu/discuss/post/${id}`, {
+      headers: { "Accept-Encoding": "utf-8" },
+      signal: AbortSignal.timeout(5000),
+    });
+  } catch (e) {
+    console.error("Fetch error:", e);
+    return await getpost(id);
+  }
+
+  if (response.status === 404) {
+    return { topic_id: null, author: null, bbcodesource: null, is404: true, isdustbinned: false };
+  }
+
+  const match = response.url.match(/topic\/(\d+)(?:\/\?page=(\d+))?/);
+  const topicid = parseInt(match?.[1] || 0);
+  const pagen = parseInt(match?.[2] || 0);
+
+  if (page) {
+    response = await fetch(`https://scratch.mit.edu/discuss/topic/${topicid}?page=${pagen + page}`, {
+      signal: AbortSignal.timeout(5000),
+    });
+  }
+
+  if (response.status === 403) {
+    return { topic_id: topicid, author: null, bbcodesource: null, is404: false, isdustbinned: true };
+  }
+
+  const resptext = await response.text();
+  const parsed = new jsdom.JSDOM(resptext);
+  let author;
+
+  try {
+    author = parsed.window.document
+      .getElementById("p" + id)
+      .querySelector("div .box-content .postleft dl dt a").textContent;
+  } catch {
+    console.log("New page");
+    return await getpost(id, 1);
+  }
+
+  const source = await sourcerequest;
+  return { topic_id: topicid, author, bbcodesource: source, is404: false, isdustbinned: false };
 }
 
+// --- Caching with retry ---
 async function getpostcaching(id) {
-    cacheresult = await getfromcache(id);
-    if (cacheresult) {
-        return cacheresult;
-    } else {
-        let result = await getpost(id);
-        setincache(id, result);
-        return result;
-    }
+  const cacheresult = await retryOnBusy(() => getfromcache(id));
+  if (cacheresult) return cacheresult;
+
+  const result = await getpost(id);
+  await retryOnBusy(() => setincache(id, result));
+  return result;
 }
-function sleeppromise(ms) {
-    return new Promise((resolve, _reject) => {
-        setTimeout(resolve, ms);
-    })
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
+
+// --- Worker helper ---
 async function getnextparent() {
-    let x = await new Promise((rs,rj)=>{
-        worker.parentPort.postMessage("next");
-        worker.parentPort.on("message",rs);
-    });
-    worker.parentPort.off("message");
-    return x;
+  const x = await new Promise((resolve) => {
+    worker.parentPort.postMessage("next");
+    worker.parentPort.on("message", resolve);
+  });
+  worker.parentPort.off("message");
+  return retryOnBusy(() => getnext(true));
 }
+
+// --- Caching loops ---
 async function cacheforever() {
-    while (true) {
-        let cached = await getnextparent();
-        await getpostcaching(cached);
-        await sleeppromise(500);
-    }
+  while (true) {
+    const cached = await getnextparent();
+    await getpostcaching(cached);
+    await sleep(500);
+  }
 }
+
 async function cache() {
-    for (let i = 0; i < 10; i++) {
-        console.log("Starting fetch thread #" + i.toString());
-        let w = new worker.Worker(__filename);
-        w.on("message",async()=>{
-            w.postMessage(await getnext(true));
-        })
-        await sleeppromise(1000);
-    }
-}
-async function main() {
-    console.log("Starting caching all posts");
-    await cache();
-    app.listen(port, () => {
-      console.log(`✅ Server running at http://localhost:${port}`);
-      console.log(`📁 Serving static files from: ${staticPath}`);
+  for (let i = 0; i < 10; i++) {
+    console.log(`Starting fetch thread #${i}`);
+    const w = new worker.Worker(__filename);
+    w.on("message", async () => {
+      w.postMessage(await getnext(true));
     });
+    await sleep(1000);
+  }
 }
+
+async function main() {
+  console.log("Starting caching all posts");
+  await cache();
+
+  app.listen(port, () => {
+    console.log(`✅ Server running at http://localhost:${port}`);
+    console.log(`📁 Serving static files from: ${staticPath}`);
+  });
+}
+
 (async () => {
-    if (worker.isMainThread) {
-        await main();
-    } else {
-        await cacheforever();
-    }
+  if (worker.isMainThread) {
+    await main();
+  } else {
+    await cacheforever();
+  }
 })();

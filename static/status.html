@@ -1,28 +1,55 @@
-<meta name=viewport content=width=device-width,initial-scale=1 />
-Latest post retrieved: <span id=out></span><br>
-<span id=rate></span> posts per second.
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+
+<h3>Latest post retrieved:</h3>
+<span id="out">0</span><br>
+<span id="rate">0</span> posts per second.
+
 <script>
-    ws2 = new WebSocket(`ws://${location.host}/status/ws`);
+    // --- STATUS WEBSOCKET ---
+    const ws2 = new WebSocket(`ws://${location.host}/status/ws`);
+    window.now = 0;
+    window.last = 0;
+
     ws2.onmessage = (e) => {
-        window.now=parseInt(e.data);
-        document.getElementById('out').innerText = (e.data);
-    }
-    window.last=0;
+        const val = parseInt(e.data);
+        if (!isNaN(val)) {
+            window.now = val;
+            document.getElementById('out').innerText = val;
+        }
+    };
+
     setInterval(() => {
-        document.getElementById('rate').innerText = ((window.now-window.last)/10).toString();
-        window.last=window.now;
-    }, 10000);
+        const rate = Math.max(0, (window.now - window.last) / 10); // posts/sec
+        document.getElementById('rate').innerText = rate.toFixed(1);
+        window.last = window.now;
+    }, 10000); // every 10 seconds
+
+    ws2.onclose = () => console.warn("Status WebSocket closed");
+    ws2.onerror = (err) => console.error("Status WebSocket error:", err);
 </script>
 
-<br>
-<textarea id="leaderboard"></textarea><script>
-    window.textarea=document.getElementById("leaderboard");
-    ws3 = new WebSocket(`ws://${location.host}/leaderboard/ws`);
+<hr>
+
+<h3>Leaderboard:</h3>
+<textarea id="leaderboard" rows="10" cols="30" readonly></textarea>
+
+<script>
+    // --- LEADERBOARD WEBSOCKET ---
+    const ws3 = new WebSocket(`ws://${location.host}/leaderboard/ws`);
+    const textarea = document.getElementById("leaderboard");
+
     ws3.onmessage = (e) => {
-        let p=JSON.parse(e.data);
-        window.textarea.value="";
-        p.forEach((i)=>{
-            window.textarea.value+=i[0]+": "+i[1].toString()+"\n";
-        })
-    }
+        try {
+            const p = JSON.parse(e.data);
+            textarea.value = "";
+            p.forEach(([name, score]) => {
+                textarea.value += `${name}: ${score}\n`;
+            });
+        } catch (err) {
+            console.error("Leaderboard WS parse error:", err);
+        }
+    };
+
+    ws3.onclose = () => console.warn("Leaderboard WebSocket closed");
+    ws3.onerror = (err) => console.error("Leaderboard WebSocket error:", err);
 </script>

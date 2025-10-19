@@ -159,6 +159,10 @@ wss.on("connection", (ws, req) => {
     intervals.set(ws, id);
   }
 
+  ws.on("error", (err) => {
+    console.error("Worker encountered an error:", err);
+  });
+
   ws.on("close", () => {
     const id = intervals.get(ws);
     if (id) clearInterval(id);

@@ -1,84 +1,123 @@
-var mysql = require('mysql');
-var dbconfig = require('../dbconfig.json');
+const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
 
-var con = mysql.createPool({
-    host: dbconfig.host,
-    port: dbconfig.port,
-    user: dbconfig.user,
-    password: dbconfig.password,
-    database: dbconfig.database,
-    multipleStatements: true,
-    connectionLimit: 100
+// Use a local .db file
+const dbPath = path.join(__dirname, 'database.db');
+const db = new sqlite3.Database(dbPath, (err) => {
+    if (err) {
+        console.error("Error opening database:", err.message);
+    } else {
+        console.log("Connected to SQLite database at", dbPath);
+    }
 });
 
-async function setup() {
-    con.query("CREATE TABLE IF NOT EXISTS `posts` (`id` INT NOT NULL,`author` TINYTEXT, `topic_id` INT, `source` MEDIUMTEXT, `isdustbinned` BOOLEAN NOT NULL, `is404` BOOLEAN NOT NULL, PRIMARY KEY (`id`));CREATE TABLE IF NOT EXISTS `claimed`(n INT NOT NULL);DELETE FROM claimed;", function (err, _result) {
+// Setup tables
+function setup() {
+    const createTables = `
+        CREATE TABLE IF NOT EXISTS posts (
+            id INTEGER PRIMARY KEY,
+            author TEXT,
+            topic_id INTEGER,
+            source TEXT,
+            isdustbinned BOOLEAN NOT NULL,
+            is404 BOOLEAN NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS claimed (
+            n INTEGER NOT NULL
+        );
+        DELETE FROM claimed;
+    `;
+    db.exec(createTables, (err) => {
         if (err) throw err;
     });
 }
 setup();
 
+// Helper to parse integer or null
+function parseIntOrNull(i) {
+    return i == null ? null : parseInt(i);
+}
+
+// Get from cache
 function getfromcache(id) {
-    console.log("Getting from cache");
     return new Promise((resolve, _reject) => {
-        con.query("SELECT * FROM posts WHERE id = ?", [id], function (err, result) {
+        db.get("SELECT * FROM posts WHERE id = ?", [id], (err, row) => {
             if (err) throw err;
-            if (result.length == 0) {
-                resolve(false);
+            if (!row) resolve(false);
+            else resolve({
+                topic_id: row.topic_id,
+                author: row.author,
+                bbcodesource: row.source,
+                is404: !!row.is404,
+                isdustbinned: !!row.isdustbinned
+            });
+        });
+    });
+}
+
+// Check if exists in cache
+async function isincache(id) {
+    return Boolean(await getfromcache(id));
+}
+
+// Set in cache
+function setincache(id, data) {
+    return new Promise((resolve, _reject) => {
+        db.run(
+            `INSERT OR REPLACE INTO posts (id, author, topic_id, source, isdustbinned, is404)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [parseInt(id), data.author, parseIntOrNull(data.topic_id), data.bbcodesource, data.isdustbinned ? 1 : 0, data.is404 ? 1 : 0],
+            function (err) {
+                if (err) throw err;
+                resolve();
+            }
+        );
+    });
+}
+
+// Get next free id
+function getnext(claim = false) {
+    return new Promise((resolve, _reject) => {
+        // Find all ids used in posts or claimed
+        db.all("SELECT id as val FROM posts UNION SELECT n as val FROM claimed", [], (err, rows) => {
+            if (err) throw err;
+
+            const ids = rows.map(r => r.val).sort((a, b) => a - b);
+            let next = 0;
+
+            for (let i = 0; i < ids.length; i++) {
+                if (ids[i] !== next) break;
+                next++;
+            }
+
+            if (claim) {
+                db.run("INSERT INTO claimed (n) VALUES (?)", [next], (err2) => {
+                    if (err2) throw err2;
+                    resolve(next);
+                });
             } else {
-                let i = result[0];
-                console.log("Done getting from cache");
-                resolve({ "topic_id": i.topic_id, "author": i.author, "bbcodesource": i.source, "is404": i.is404, "isdustbinned": i.isdustbinned });
+                resolve(next);
             }
         });
     });
 }
 
-function parseIntOrNull(i) {
-    return i == null ? null : parseInt(i);
-}
-
-async function setincache(id, data) {
-    console.log("Setting in cache");
-    con.query("INSERT INTO posts (id,author,topic_id,source,isdustbinned,is404) VALUES (?,?,?,?,?,?);", [parseInt(id), data.author, parseIntOrNull(data.topic_id), data.bbcodesource, data.isdustbinned, data.is404])
-}
-
-async function isincache(id) {
-    return Boolean(await getfromcache(id));
-}
-
-function getnext(claim=false) {
-    console.log("Getting next");
-    return new Promise((resolve, _reject) => {
-        let query = claim ? "SELECT @a := id FROM (SELECT id FROM posts UNION SELECT n as id FROM claimed) p1 WHERE (SELECT count(id) FROM (SELECT id FROM posts UNION SELECT n as id FROM claimed) p2 WHERE p2.id=p1.id+1)=0; INSERT into claimed (n) values (@a); SELECT @a as firstfree;" : "SELECT id as firstfree FROM (SELECT id FROM posts UNION SELECT n as id FROM claimed) p1 WHERE (SELECT count(id) FROM (SELECT id FROM posts UNION SELECT n as id FROM claimed) p2 WHERE p2.id=p1.id+1)=0;";
-        con.query(query, function (err, result) {
-            if (err) throw err;
-            if (result.length == 0) {
-                resolve(false);
-            } else {
-                let i;
-                if (claim) {
-                    i = result[2][0];
-                } else {
-                    i = result[0];
-                }
-                resolve(i.firstfree);
-            }
-        });
-    })
-
-}
-
+// Leaderboard
 function leaderboard() {
     return new Promise((resolve, _reject) => {
-        con.query("SELECT author, COUNT(author) AS post_count FROM posts GROUP BY author ORDER BY post_count DESC LIMIT 50;", function (err, result) {
-            if (err) throw err;
-            let new_arr = [];
-            result.forEach((i) => {
-                new_arr.push([i.author, i.post_count])
-            });
-            resolve(new_arr);
-        });
+        db.all(
+            `SELECT author, COUNT(author) AS post_count 
+             FROM posts 
+             GROUP BY author 
+             ORDER BY post_count DESC 
+             LIMIT 50`,
+            [],
+            (err, rows) => {
+                if (err) throw err;
+                const result = rows.map(r => [r.author, r.post_count]);
+                resolve(result);
+            }
+        );
     });
 }
 

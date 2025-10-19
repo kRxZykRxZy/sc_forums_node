@@ -4,7 +4,6 @@ const http = require("http");
 const WebSocket = require("ws");
 const jsdom = require("jsdom");
 const worker = require("worker_threads");
-const fetch = require("node-fetch");
 const { getfromcache, setincache, leaderboard, getnext } = require("./storage.js");
 
 // --- SQLITE_BUSY retry helper ---
